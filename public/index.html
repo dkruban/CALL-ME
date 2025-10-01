@@ -1,1 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Voice Call App</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <div class="container">
+        <h1>Voice Call App</h1>
+        
+        <div class="number-selection">
+            <h2>Select Your Number</h2>
+            <div class="number-buttons">
+                <button class="number-btn" data-number="8080">8080</button>
+                <button class="number-btn" data-number="9999">9999</button>
+                <button class="number-btn" data-number="1212">1212</button>
+                <button class="number-btn" data-number="0000">0000</button>
+            </div>
+        </div>
+        
+        <div class="call-controls" style="display: none;">
+            <h2>Your Number: <span id="current-number"></span></h2>
+            <div class="status" id="status">Waiting for connection...</div>
+            
+            <div class="users-list">
+                <h3>Available Users</h3>
+                <ul id="users-list"></ul>
+            </div>
+            
+            <div class="call-actions">
+                <button id="call-btn" disabled>Call</button>
+                <button id="hangup-btn" disabled>Hang Up</button>
+            </div>
+            
+            <div class="audio-controls">
+                <button id="mute-btn">Mute</button>
+                <button id="unmute-btn" disabled>Unmute</button>
+            </div>
+        </div>
+    </div>
 
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="client.js"></script>
+</body>
+</html>
