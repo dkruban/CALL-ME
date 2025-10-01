@@ -22,7 +22,7 @@
         
         <div class="call-controls" style="display: none;">
             <h2>Your Number: <span id="current-number"></span></h2>
-            <div class="status" id="status">Waiting for connection...</div>
+            <div class="status" id="status">Waiting for other users...</div>
             
             <div class="users-list">
                 <h3>Available Users</h3>
@@ -30,16 +30,19 @@
             </div>
             
             <div class="call-actions">
-                <button id="call-btn" disabled>Call</button>
+                <button id="call-btn" disabled>Call Selected User</button>
                 <button id="hangup-btn" disabled>Hang Up</button>
             </div>
             
             <div class="audio-controls">
-                <button id="mute-btn">Mute</button>
+                <button id="mute-btn" disabled>Mute</button>
                 <button id="unmute-btn" disabled>Unmute</button>
             </div>
         </div>
     </div>
+
+    <!-- Audio element to play remote audio stream -->
+    <audio id="remoteAudio" autoplay></audio>
 
     <script src="/socket.io/socket.io.js"></script>
     <script src="client.js"></script>
