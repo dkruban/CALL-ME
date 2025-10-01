@@ -3,42 +3,67 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voice Call App</title>
+    <title>Voice Call App | Terminal</title>
+    <!-- Google Fonts for a Hacker/Tech Look -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+    <!-- Animated Background Grid -->
+    <div class="grid-background"></div>
+
     <div class="container">
-        <h1>Voice Call App</h1>
+        <header>
+            <h1>// VOICE_CALL_TERMINAL</h1>
+            <div class="status-bar">
+                <span class="status-indicator online"></span>
+                <span id="connection-status">ONLINE</span>
+            </div>
+        </header>
         
-        <div class="number-selection">
-            <h2>Select Your Number</h2>
-            <div class="number-buttons">
-                <button class="number-btn" data-number="8080">8080</button>
-                <button class="number-btn" data-number="9999">9999</button>
-                <button class="number-btn" data-number="1212">1212</button>
-                <button class="number-btn" data-number="0000">0000</button>
-            </div>
-        </div>
-        
-        <div class="call-controls" style="display: none;">
-            <h2>Your Number: <span id="current-number"></span></h2>
-            <div class="status" id="status">Waiting for other users...</div>
-            
-            <div class="users-list">
-                <h3>Available Users</h3>
-                <ul id="users-list"></ul>
+        <main>
+            <div class="number-selection" id="number-selection">
+                <h2>&gt; SELECT_IDENTITY</h2>
+                <div class="number-buttons">
+                    <button class="number-btn" data-number="8080">8080</button>
+                    <button class="number-btn" data-number="9999">9999</button>
+                    <button class="number-btn" data-number="1212">1212</button>
+                    <button class="number-btn" data-number="0000">0000</button>
+                </div>
             </div>
             
-            <div class="call-actions">
-                <button id="call-btn" disabled>Call Selected User</button>
-                <button id="hangup-btn" disabled>Hang Up</button>
+            <div class="call-controls" id="call-controls" style="display: none;">
+                <h2>&gt; IDENTITY: <span id="current-number"></span></h2>
+                <div class="terminal-window">
+                    <div class="terminal-header">
+                        <div class="terminal-buttons">
+                            <span class="btn close"></span>
+                            <span class="btn minimize"></span>
+                            <span class="btn maximize"></span>
+                        </div>
+                        <div class="terminal-title">system.log</div>
+                    </div>
+                    <div class="terminal-body">
+                        <p class="log-entry" id="status">Awaiting connection...</p>
+                    </div>
+                </div>
+                
+                <div class="users-list">
+                    <h3>&gt; AVAILABLE_NODES</h3>
+                    <ul id="users-list"></ul>
+                </div>
+                
+                <div class="control-panel">
+                    <button id="call-btn" disabled class="control-btn primary">&gt; INITIATE_CALL</button>
+                    <button id="hangup-btn" disabled class="control-btn danger">&gt; TERMINATE</button>
+                    <button id="mute-btn" disabled class="control-btn secondary">&gt; MUTE</button>
+                    <button id="unmute-btn" disabled class="control-btn secondary">&gt; UNMUTE</button>
+                </div>
             </div>
-            
-            <div class="audio-controls">
-                <button id="mute-btn" disabled>Mute</button>
-                <button id="unmute-btn" disabled>Unmute</button>
-            </div>
-        </div>
+        </main>
     </div>
 
     <!-- Audio element to play remote audio stream -->
