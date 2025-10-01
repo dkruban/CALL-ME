@@ -1,17 +1,22 @@
 document.addEventListener('DOMContentLoaded', () => {
     const socket = io();
     let localStream;
-    let remoteStream;
     let peerConnection;
     let currentNumber = null;
     let selectedUserId = null;
     let isCallActive = false;
-    let isMuted = false;
     
-    // WebRTC configuration
+    // --- IMPORTANT: CONFIGURE YOUR TURN SERVER HERE ---
+    // Replace with your actual TURN server credentials from a service like Twilio or Xirsys.
+    // For testing, you can leave it with just the STUN server, but it will fail for many users.
     const configuration = {
         iceServers: [
-            { urls: 'stun:stun.l.google.com:19302' }
+            { urls: 'stun:stun.l.google.com:19302' },
+            // {
+            //     urls: 'turn:your-turn-server.com:3478',
+            //     username: 'your-username',
+            //     credential: 'your-credential'
+            // }
         ]
     };
     
@@ -25,7 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const hangupBtn = document.getElementById('hangup-btn');
     const muteBtn = document.getElementById('mute-btn');
     const unmuteBtn = document.getElementById('unmute-btn');
-    
+    const remoteAudio = document.getElementById('remoteAudio'); // The audio element
+
     // Handle number selection
     numberButtons.forEach(button => {
         button.addEventListener('click', () => {
@@ -33,239 +39,167 @@ document.addEventListener('DOMContentLoaded', () => {
             currentNumber = number;
             currentNumberSpan.textContent = number;
             
-            // Show call controls
             document.querySelector('.number-selection').style.display = 'none';
             callControls.style.display = 'block';
             
-            // Join the room
             socket.emit('join-room', number);
         });
     });
-    
-    // Handle user joined event
-    socket.on('user-joined', (userId) => {
-        statusDiv.textContent = 'New user joined. You can now make a call.';
-        updateUsersList();
+
+    // --- Socket Event Handlers ---
+
+    // Update the list of available users in the room
+    socket.on('update-users-list', (users) => {
+        usersList.innerHTML = ''; // Clear current list
+        users.forEach(user => {
+            // Don't show the current user in the list
+            if (user.id !== socket.id) {
+                const li = document.createElement('li');
+                li.textContent = `User ${user.id.substring(0, 5)}...`;
+                li.dataset.userId = user.id;
+                li.addEventListener('click', selectUser);
+                usersList.appendChild(li);
+            }
+        });
+        statusDiv.textContent = users.length > 1 ? 'Select a user to call.' : 'Waiting for other users...';
     });
-    
-    // Handle user left event
+
+    socket.on('user-joined', (userId) => {
+        statusDiv.textContent = `User ${userId.substring(0,5)}... joined.`;
+    });
+
     socket.on('user-left', (userId) => {
-        statusDiv.textContent = 'User left the room.';
-        updateUsersList();
-        
-        // If we were in a call with this user, end the call
-        if (isCallActive) {
+        statusDiv.textContent = `User ${userId.substring(0,5)}... left.`;
+        if (selectedUserId === userId) {
             endCall();
         }
     });
-    
-    // Update users list
-    function updateUsersList() {
-        // This is a simplified version. In a real app, you'd maintain a list of users
-        // For now, we'll just show a placeholder
-        usersList.innerHTML = '<li>Available user (click to select)</li>';
-        
-        // Add click event to select a user
-        const userItems = usersList.querySelectorAll('li');
-        userItems.forEach(item => {
-            item.addEventListener('click', () => {
-                // Remove previous selection
-                document.querySelectorAll('#users-list li').forEach(li => {
-                    li.classList.remove('selected');
-                });
-                
-                // Select this user
-                item.classList.add('selected');
-                selectedUserId = 'user-id'; // In a real app, this would be the actual user ID
-                callBtn.disabled = false;
-            });
-        });
-    }
-    
-    // Initialize a call
-    async function initializeCall() {
-        try {
-            // Get local media stream
-            localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            
-            // Create peer connection
-            peerConnection = new RTCPeerConnection(configuration);
-            
-            // Add local stream to peer connection
-            localStream.getTracks().forEach(track => {
-                peerConnection.addTrack(track, localStream);
-            });
-            
-            // Handle remote stream
-            peerConnection.ontrack = (event) => {
-                remoteStream = event.streams[0];
-                // In a real app, you would play this remote stream
-                // For this example, we're just establishing the connection
-            };
-            
-            // Handle ICE candidates
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit('ice-candidate', {
-                        target: selectedUserId,
-                        candidate: event.candidate
-                    });
-                }
-            };
-            
-            // Create and send offer
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-            
-            socket.emit('offer', {
-                target: selectedUserId,
-                offer: offer
-            });
-            
-            statusDiv.textContent = 'Calling...';
-            isCallActive = true;
-            callBtn.disabled = true;
-            hangupBtn.disabled = false;
-            muteBtn.disabled = false;
-            unmuteBtn.disabled = true;
-            
-        } catch (error) {
-            console.error('Error initializing call:', error);
-            statusDiv.textContent = 'Error: Could not initialize call.';
-        }
-    }
-    
-    // Handle incoming offer
+
+    // --- WebRTC Signaling ---
+
     socket.on('offer', async (data) => {
-        try {
-            // Get local media stream if not already available
-            if (!localStream) {
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
-            }
-            
-            // Create peer connection if not already created
-            if (!peerConnection) {
-                peerConnection = new RTCPeerConnection(configuration);
-                
-                // Add local stream to peer connection
-                localStream.getTracks().forEach(track => {
-                    peerConnection.addTrack(track, localStream);
-                });
-                
-                // Handle remote stream
-                peerConnection.ontrack = (event) => {
-                    remoteStream = event.streams[0];
-                    // In a real app, you would play this remote stream
-                };
-                
-                // Handle ICE candidates
-                peerConnection.onicecandidate = (event) => {
-                    if (event.candidate) {
-                        socket.emit('ice-candidate', {
-                            target: data.sender,
-                            candidate: event.candidate
-                        });
-                    }
-                };
-            }
-            
-            // Set remote description
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
-            
-            // Create and send answer
-            const answer = await peerConnection.createAnswer();
-            await peerConnection.setLocalDescription(answer);
-            
-            socket.emit('answer', {
-                target: data.sender,
-                answer: answer
-            });
-            
-            statusDiv.textContent = 'In a call...';
-            isCallActive = true;
-            callBtn.disabled = true;
-            hangupBtn.disabled = false;
-            muteBtn.disabled = false;
-            unmuteBtn.disabled = true;
-            
-        } catch (error) {
-            console.error('Error handling offer:', error);
-            statusDiv.textContent = 'Error: Could not handle incoming call.';
+        if (!localStream) {
+            await getLocalMedia();
         }
+        await createPeerConnection();
+        
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.offer));
+        const answer = await peerConnection.createAnswer();
+        await peerConnection.setLocalDescription(answer);
+        
+        socket.emit('answer', { target: data.sender, answer: answer });
+        
+        isCallActive = true;
+        updateCallUI(true);
+        statusDiv.textContent = 'In a call...';
     });
-    
-    // Handle incoming answer
+
     socket.on('answer', async (data) => {
-        try {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
-            statusDiv.textContent = 'Call connected.';
-        } catch (error) {
-            console.error('Error handling answer:', error);
-            statusDiv.textContent = 'Error: Could not connect call.';
-        }
+        await peerConnection.setRemoteDescription(new RTCSessionDescription(data.answer));
+        statusDiv.textContent = 'Call connected.';
     });
-    
-    // Handle incoming ICE candidates
+
     socket.on('ice-candidate', async (data) => {
-        try {
+        if (peerConnection) {
             await peerConnection.addIceCandidate(new RTCIceCandidate(data.candidate));
+        }
+    });
+
+    // --- UI and Call Logic Functions ---
+
+    function selectUser(event) {
+        document.querySelectorAll('#users-list li').forEach(li => li.classList.remove('selected'));
+        event.target.classList.add('selected');
+        selectedUserId = event.target.dataset.userId;
+        callBtn.disabled = false;
+    }
+
+    async function getLocalMedia() {
+        try {
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false });
         } catch (error) {
-            console.error('Error adding ICE candidate:', error);
+            console.error('Error getting media:', error);
+            statusDiv.textContent = 'Error: Could not access microphone.';
         }
-    });
-    
-    // Call button click event
-    callBtn.addEventListener('click', initializeCall);
-    
-    // Hang up button click event
-    hangupBtn.addEventListener('click', endCall);
-    
-    // Mute button click event
-    muteBtn.addEventListener('click', () => {
-        if (localStream) {
-            localStream.getAudioTracks().forEach(track => {
-                track.enabled = false;
-            });
-            isMuted = true;
-            muteBtn.disabled = true;
-            unmuteBtn.disabled = false;
-            statusDiv.textContent = 'Muted';
-        }
-    });
-    
-    // Unmute button click event
-    unmuteBtn.addEventListener('click', () => {
-        if (localStream) {
-            localStream.getAudioTracks().forEach(track => {
-                track.enabled = true;
-            });
-            isMuted = false;
-            muteBtn.disabled = false;
-            unmuteBtn.disabled = true;
-            statusDiv.textContent = 'Unmuted';
-        }
-    });
-    
-    // End call function
+    }
+
+    async function createPeerConnection() {
+        peerConnection = new RTCPeerConnection(configuration);
+        
+        localStream.getTracks().forEach(track => {
+            peerConnection.addTrack(track, localStream);
+        });
+        
+        peerConnection.ontrack = (event) => {
+            remoteStream = event.streams[0];
+            remoteAudio.srcObject = remoteStream; // Play the remote audio
+        };
+        
+        peerConnection.onicecandidate = (event) => {
+            if (event.candidate) {
+                socket.emit('ice-candidate', { target: selectedUserId, candidate: event.candidate });
+            }
+        };
+    }
+
+    async function initializeCall() {
+        if (!selectedUserId) return;
+        
+        await getLocalMedia();
+        await createPeerConnection();
+        
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        
+        socket.emit('offer', { target: selectedUserId, offer: offer });
+        
+        isCallActive = true;
+        updateCallUI(true);
+        statusDiv.textContent = 'Calling...';
+    }
+
     function endCall() {
         if (peerConnection) {
             peerConnection.close();
             peerConnection = null;
         }
-        
         if (localStream) {
-            localStream.getTracks().forEach(track => {
-                track.stop();
-            });
+            localStream.getTracks().forEach(track => track.stop());
             localStream = null;
         }
+        remoteAudio.srcObject = null; // Stop remote audio
         
         isCallActive = false;
-        isMuted = false;
-        callBtn.disabled = false;
-        hangupBtn.disabled = true;
-        muteBtn.disabled = true;
-        unmuteBtn.disabled = true;
+        selectedUserId = null;
+        updateCallUI(false);
         statusDiv.textContent = 'Call ended.';
     }
+
+    function updateCallUI(inCall) {
+        callBtn.disabled = inCall;
+        hangupBtn.disabled = !inCall;
+        muteBtn.disabled = !inCall;
+        unmuteBtn.disabled = !inCall;
+        document.querySelectorAll('#users-list li').forEach(li => {
+            li.style.pointerEvents = inCall ? 'none' : 'auto';
+        });
+    }
+
+    // --- Event Listeners ---
+    callBtn.addEventListener('click', initializeCall);
+    hangupBtn.addEventListener('click', endCall);
+
+    muteBtn.addEventListener('click', () => {
+        localStream.getAudioTracks().forEach(track => track.enabled = false);
+        muteBtn.disabled = true;
+        unmuteBtn.disabled = false;
+        statusDiv.textContent = 'Muted';
+    });
+
+    unmuteBtn.addEventListener('click', () => {
+        localStream.getAudioTracks().forEach(track => track.enabled = true);
+        muteBtn.disabled = false;
+        unmuteBtn.disabled = true;
+        statusDiv.textContent = 'Unmuted';
+    });
 });
